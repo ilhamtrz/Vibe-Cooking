@@ -42,16 +42,19 @@ namespace VibeCooking
 
             if (activeBowl == null)
                 activeBowl = Object.FindAnyObjectByType<BowlInstance>();
-            if (activeCustomer == null)
-                activeCustomer = Object.FindAnyObjectByType<CustomerAgent>();
-
-            Debug.Log("<color=yellow>[ServeBell] Ding! Serving active bowl...</color>");
-            GameEvents.TriggerOrderServed(activeBowl, activeCustomer);
-
-            if (activeCustomer == null && activeBowl != null)
+            if (activeCustomer != null && activeBowl != null)
             {
-                Debug.Log("<color=green>[ServeBell] Practice bowl served! Resetting bowl for another delicious bowl.</color>");
-                activeBowl.ClearBowl();
+                Debug.Log("<color=yellow>[ServeBell] Ding! Serving active bowl to customer...</color>");
+                activeCustomer.ServeOrder(activeBowl);
+            }
+            else
+            {
+                Debug.Log("<color=yellow>[ServeBell] Ding! Serving active bowl...</color>");
+                GameEvents.TriggerOrderServed(activeBowl, activeCustomer);
+                if (activeBowl != null)
+                {
+                    activeBowl.ClearBowl();
+                }
             }
         }
 

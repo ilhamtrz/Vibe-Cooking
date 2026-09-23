@@ -24,6 +24,10 @@ namespace VibeCooking.Editor
             CreateScallionsSprite();
             CreateBasketSprite();
             CreatePotSprite();
+            CreateCustomerNightCoderSprite();
+            CreateOrderTicketSprite();
+            CreateCoinSprite();
+            CreateSpeechBubbleSprite();
 
             AssetDatabase.Refresh();
 
@@ -36,6 +40,10 @@ namespace VibeCooking.Editor
             ConfigureAsSprite($"{ArtPath}/spr_scallions.png");
             ConfigureAsSprite($"{ArtPath}/spr_basket.png");
             ConfigureAsSprite($"{ArtPath}/spr_pot_shoyu.png");
+            ConfigureAsSprite($"{ArtPath}/spr_customer_night_coder.png");
+            ConfigureAsSprite($"{ArtPath}/spr_order_ticket.png");
+            ConfigureAsSprite($"{ArtPath}/spr_coin.png");
+            ConfigureAsSprite($"{ArtPath}/spr_speech_bubble.png");
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -115,6 +123,15 @@ namespace VibeCooking.Editor
                 scallionsSO.bowlVisual = sprScallions;
                 scallionsSO.placeholderColor = Color.white;
                 EditorUtility.SetDirty(scallionsSO);
+            }
+
+            // Customer: Night Coder
+            var sprCustomer = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_customer_night_coder.png");
+            var customerSO = AssetDatabase.LoadAssetAtPath<CustomerDataSO>("Assets/_Project/ScriptableObjects/Customers/NightCoderCustomer.asset");
+            if (customerSO != null && sprCustomer != null)
+            {
+                customerSO.portrait = sprCustomer;
+                EditorUtility.SetDirty(customerSO);
             }
 
             AssetDatabase.SaveAssets();
@@ -394,6 +411,275 @@ namespace VibeCooking.Editor
             }
             tex.Apply();
             File.WriteAllBytes($"{ArtPath}/spr_pot_shoyu.png", tex.EncodeToPNG());
+        }
+
+        private static void CreateCustomerNightCoderSprite()
+        {
+            int size = 256;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float cx = size * 0.5f;
+
+            Color hoodieCol = new Color(0.14f, 0.16f, 0.24f, 1f);     // Dark cozy hoodie
+            Color hoodieShade = new Color(0.10f, 0.11f, 0.18f, 1f);
+            Color skinCol = new Color(0.96f, 0.88f, 0.82f, 1f);       // Pale face
+            Color hairCol = new Color(0.18f, 0.20f, 0.28f, 1f);       // Dark indigo messy hair
+            Color glassesCol = new Color(0.45f, 0.75f, 1.0f, 0.9f);    // Blue screen glow reflection
+            Color eyesCol = new Color(0.20f, 0.22f, 0.30f, 1f);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    tex.SetPixel(x, y, Color.clear);
+
+                    // 1. Shoulders / Hoodie Body (y: 0 to 110)
+                    float bodyDist = Mathf.Pow((x - cx) / 105f, 2) + Mathf.Pow((y - 20f) / 95f, 2);
+                    if (bodyDist <= 1.0f && y < 115)
+                    {
+                        tex.SetPixel(x, y, (x > cx - 20 && x < cx + 20) ? hoodieShade : hoodieCol);
+                    }
+
+                    // 2. Head / Face (y: 95 to 195)
+                    float faceDist = Mathf.Pow((x - cx) / 52f, 2) + Mathf.Pow((y - 145f) / 58f, 2);
+                    if (faceDist <= 1.0f)
+                    {
+                        tex.SetPixel(x, y, skinCol);
+                    }
+
+                    // 3. Eyes / Glasses (y: 135 to 155)
+                    float leftLens = Vector2.Distance(new Vector2(x, y), new Vector2(cx - 24, 142));
+                    float rightLens = Vector2.Distance(new Vector2(x, y), new Vector2(cx + 24, 142));
+                    if ((leftLens <= 15f && leftLens >= 12f) || (rightLens <= 15f && rightLens >= 12f))
+                    {
+                        tex.SetPixel(x, y, glassesCol);
+                    }
+                    else if (leftLens < 12f || rightLens < 12f)
+                    {
+                        // Soft blue tint inside glasses
+                        tex.SetPixel(x, y, Color.Lerp(skinCol, glassesCol, 0.25f));
+                    }
+
+                    // Bridge of glasses
+                    if (Mathf.Abs(y - 143) <= 2 && Mathf.Abs(x - cx) <= 12)
+                    {
+                        tex.SetPixel(x, y, glassesCol);
+                    }
+
+                    // Relaxed tired eyes behind lenses
+                    if (y >= 140 && y <= 143)
+                    {
+                        if ((x >= cx - 30 && x <= cx - 18) || (x >= cx + 18 && x <= cx + 30))
+                        {
+                            tex.SetPixel(x, y, eyesCol);
+                        }
+                    }
+
+                    // 4. Hair / Bangs (y: 160 to 225)
+                    float hairTopDist = Mathf.Pow((x - cx) / 58f, 2) + Mathf.Pow((y - 170f) / 52f, 2);
+                    if (hairTopDist <= 1.0f && y > 148)
+                    {
+                        tex.SetPixel(x, y, hairCol);
+                    }
+                    // Messy strand spikes
+                    if (y > 140 && y < 175)
+                    {
+                        float wave = Mathf.Sin(x * 0.15f) * 12f;
+                        if (y < 165 + wave && faceDist <= 1.15f)
+                        {
+                            tex.SetPixel(x, y, hairCol);
+                        }
+                    }
+
+                    // 5. Hoodie Rim / Collar around neck
+                    float collarDist = Mathf.Pow((x - cx) / 60f, 2) + Mathf.Pow((y - 105f) / 25f, 2);
+                    if (collarDist <= 1.0f && collarDist >= 0.7f && y < 120)
+                    {
+                        tex.SetPixel(x, y, hoodieCol);
+                    }
+                }
+            }
+            tex.Apply();
+            File.WriteAllBytes($"{ArtPath}/spr_customer_night_coder.png", tex.EncodeToPNG());
+        }
+
+        private static void CreateOrderTicketSprite()
+        {
+            int w = 256;
+            int h = 320;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+
+            Color paperCol = new Color(0.97f, 0.95f, 0.90f, 1f);     // Parchment paper
+            Color paperEdge = new Color(0.88f, 0.84f, 0.76f, 1f);    // Paper shadow/rim
+            Color clipCol = new Color(0.65f, 0.42f, 0.22f, 1f);      // Wooden clothespin
+            Color clipMetal = new Color(0.85f, 0.75f, 0.35f, 1f);    // Brass spring
+
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    tex.SetPixel(x, y, Color.clear);
+
+                    // 1. Paper Body (margin 16px, top margin 40px)
+                    if (x >= 18 && x <= w - 18 && y >= 14 && y <= h - 45)
+                    {
+                        // Torn serrated bottom edge
+                        if (y < 24 && ((x + y) % 10 < 4))
+                            continue;
+
+                        bool isEdge = (x <= 22 || x >= w - 22 || y >= h - 49);
+                        tex.SetPixel(x, y, isEdge ? paperEdge : paperCol);
+                    }
+
+                    // 2. Wooden Clip at top center
+                    if (x >= w / 2 - 20 && x <= w / 2 + 20 && y >= h - 55 && y <= h - 10)
+                    {
+                        tex.SetPixel(x, y, clipCol);
+                    }
+                    // Metal hinge/spring on clip
+                    if (x >= w / 2 - 12 && x <= w / 2 + 12 && y >= h - 35 && y <= h - 30)
+                    {
+                        tex.SetPixel(x, y, clipMetal);
+                    }
+                }
+            }
+            tex.Apply();
+            File.WriteAllBytes($"{ArtPath}/spr_order_ticket.png", tex.EncodeToPNG());
+        }
+
+        private static void CreateCoinSprite()
+        {
+            int size = 128;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float center = size * 0.5f;
+            float outerR = size * 0.45f;
+            float rimR = size * 0.40f;
+            float innerR = size * 0.32f;
+
+            Color goldRim = new Color(0.85f, 0.65f, 0.12f, 1f);
+            Color goldBody = new Color(1.0f, 0.84f, 0.20f, 1f);
+            Color goldShine = new Color(1.0f, 0.94f, 0.55f, 1f);
+            Color goldEmboss = new Color(0.78f, 0.56f, 0.08f, 1f);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    if (dist > outerR)
+                    {
+                        tex.SetPixel(x, y, Color.clear);
+                    }
+                    else if (dist > rimR)
+                    {
+                        tex.SetPixel(x, y, goldRim);
+                    }
+                    else if (dist > innerR)
+                    {
+                        // Inner ring groove
+                        tex.SetPixel(x, y, goldEmboss);
+                    }
+                    else
+                    {
+                        // Coin surface with top-left specular highlight
+                        Color c = goldBody;
+                        if (x < center && y > center && dist < innerR * 0.7f)
+                            c = goldShine;
+
+                        // Center Yen symbol pattern (simple crossbars)
+                        int dx = Mathf.Abs((int)(x - center));
+                        int dy = Mathf.Abs((int)(y - center));
+                        if ((dx <= 2 && y <= center + 14 && y >= center - 14) ||
+                            (dy <= 2 && dx <= 10 && y >= center - 4) ||
+                            (Mathf.Abs(dx - (y - center)) <= 1 && y >= center && y <= center + 14))
+                        {
+                            c = goldEmboss;
+                        }
+
+                        tex.SetPixel(x, y, c);
+                    }
+                }
+            }
+            tex.Apply();
+            File.WriteAllBytes($"{ArtPath}/spr_coin.png", tex.EncodeToPNG());
+        }
+
+        private static void CreateSpeechBubbleSprite()
+        {
+            int w = 512;
+            int h = 180;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+
+            float minX = 16f, maxX = w - 16f;
+            float minY = 36f, maxY = h - 16f;
+            float radius = 24f;
+
+            Color bgColor = new Color(0.08f, 0.10f, 0.16f, 0.94f);
+            Color borderColor = new Color(0.85f, 0.70f, 0.40f, 0.92f);
+            float borderThickness = 4f;
+
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    bool inBox = false;
+                    float distToCorner = 0f;
+
+                    // Clamped point for box rounded rectangle SDF
+                    float cx = Mathf.Clamp(x, minX + radius, maxX - radius);
+                    float cy = Mathf.Clamp(y, minY + radius, maxY - radius);
+                    distToCorner = Vector2.Distance(new Vector2(x, y), new Vector2(cx, cy));
+
+                    if (distToCorner <= radius && x >= minX && x <= maxX && y >= minY && y <= maxY)
+                    {
+                        inBox = true;
+                    }
+
+                    // Tail triangle at bottom center
+                    bool inTail = false;
+                    if (y < minY && y >= 6)
+                    {
+                        float halfW = ((y - 6f) / (minY - 6f)) * 26f;
+                        if (Mathf.Abs(x - (w * 0.5f)) <= halfW)
+                        {
+                            inTail = true;
+                        }
+                    }
+
+                    if (!inBox && !inTail)
+                    {
+                        tex.SetPixel(x, y, Color.clear);
+                    }
+                    else
+                    {
+                        // Check if on border
+                        bool isBorder = false;
+
+                        if (inBox)
+                        {
+                            if (distToCorner >= radius - borderThickness)
+                                isBorder = true;
+                        }
+
+                        if (inTail)
+                        {
+                            float halfW = ((y - 6f) / (minY - 6f)) * 26f;
+                            if (Mathf.Abs(Mathf.Abs(x - (w * 0.5f)) - halfW) <= borderThickness || y <= 6 + borderThickness)
+                                isBorder = true;
+                        }
+
+                        // Remove inner seam between box bottom and tail top
+                        if (inTail && y >= minY - borderThickness && Mathf.Abs(x - (w * 0.5f)) < 24f)
+                            isBorder = false;
+                        if (inBox && y <= minY + borderThickness && Mathf.Abs(x - (w * 0.5f)) < 24f)
+                            isBorder = false;
+
+                        tex.SetPixel(x, y, isBorder ? borderColor : bgColor);
+                    }
+                }
+            }
+
+            tex.Apply();
+            File.WriteAllBytes($"{ArtPath}/spr_speech_bubble.png", tex.EncodeToPNG());
         }
     }
 }

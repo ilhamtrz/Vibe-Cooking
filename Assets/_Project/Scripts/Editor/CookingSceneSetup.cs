@@ -17,7 +17,11 @@ namespace VibeCooking.Editor
         [MenuItem("Vibe Cooking/Setup Cooking Visuals & UI")]
         public static void SetupSceneVisuals()
         {
-            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            if (scene.path != ScenePath)
+            {
+                scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            }
 
             // 1. Load Generated Sprites
             var sprBowl = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_bowl_base.png");
@@ -28,6 +32,21 @@ namespace VibeCooking.Editor
             var sprScallions = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_scallions.png");
             var sprBasket = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_basket.png");
             var sprPot = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_pot_shoyu.png");
+            var sprCustomer = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_customer_night_coder.png");
+            var sprTicket = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_order_ticket.png");
+            var sprCoin = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_coin.png");
+            var sprBubble = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_speech_bubble.png");
+
+            // 1b. Ensure EconomyManager exists
+            var ecoObj = GameObject.Find("EconomyManager");
+            if (ecoObj == null)
+            {
+                ecoObj = new GameObject("EconomyManager");
+                ecoObj.AddComponent<EconomyManager>();
+            }
+
+            // 1c. Setup Customer Area (The Night Coder)
+            var customerAgent = SetupCustomerArea(sprCustomer, sprBubble);
 
             // 2. Setup AssemblyBowl
             var bowlObj = GameObject.Find("AssemblyBowl");
@@ -189,10 +208,20 @@ namespace VibeCooking.Editor
                     label.text = "<b>SERVE BELL</b>\n<size=75%><color=#AAAAAA>[Click to Serve]</color></size>";
                     label.sortingOrder = 15;
                 }
+
+                var bell = bellObj.GetComponent<ServeBell>();
+                if (bell != null)
+                {
+                    var bowl = bowlObj != null ? bowlObj.GetComponent<BowlInstance>() : null;
+                    bell.SetActiveBowl(bowl);
+                    bell.SetActiveCustomer(customerAgent);
+                }
             }
 
-            // 7. Setup Cooking Guide Canvas
-            SetupGuideCanvas();
+            // 7. Setup Cooking Guide Canvas, Order Ticket, and Wallet HUD
+            var canvasObj = SetupGuideCanvas();
+            SetupOrderTicketUI(canvasObj, sprTicket);
+            SetupWalletHUD(canvasObj, sprCoin);
 
             // 8. Ensure EventSystem exists and uses modern Input System
             EnsureEventSystem();
@@ -200,7 +229,7 @@ namespace VibeCooking.Editor
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveOpenScenes();
             AssetDatabase.SaveAssets();
-            Debug.Log("<color=green>[VibeCooking] Cooking Visuals, Labels, and Guide Banner configured successfully!</color>");
+            Debug.Log("<color=green>[VibeCooking] Step 1.6: Customer, Order Ticket, and Economy HUD configured successfully!</color>");
         }
 
         private static void SetupTray(string trayName, Sprite sprite, string labelText, Vector3 pos)
@@ -230,7 +259,7 @@ namespace VibeCooking.Editor
             }
         }
 
-        private static void SetupGuideCanvas()
+        private static GameObject SetupGuideCanvas()
         {
             var canvasObj = GameObject.Find("CookingGuideCanvas");
             if (canvasObj == null)
@@ -320,6 +349,268 @@ namespace VibeCooking.Editor
             // Wire serialized field via SerializedObject
             var so = new SerializedObject(guideUI);
             so.FindProperty("guideText").objectReferenceValue = promptTMP;
+            so.ApplyModifiedProperties();
+
+            return canvasObj;
+        }
+
+        private static CustomerAgent SetupCustomerArea(Sprite sprCustomer, Sprite sprBubble)
+        {
+            var customerArea = GameObject.Find("CustomerArea");
+            if (customerArea == null)
+            {
+                customerArea = new GameObject("CustomerArea");
+            }
+            customerArea.transform.position = new Vector3(0f, 1.4f, 0f);
+
+            // Customer Portrait
+            var portraitObj = customerArea.transform.Find("CustomerPortrait")?.gameObject;
+            if (portraitObj == null)
+            {
+                portraitObj = new GameObject("CustomerPortrait");
+                portraitObj.transform.SetParent(customerArea.transform, false);
+            }
+            portraitObj.transform.localPosition = Vector3.zero;
+            portraitObj.transform.localScale = new Vector3(1.1f, 1.1f, 1f);
+            var portraitSR = portraitObj.GetComponent<SpriteRenderer>();
+            if (portraitSR == null) portraitSR = portraitObj.AddComponent<SpriteRenderer>();
+            portraitSR.sprite = sprCustomer;
+            portraitSR.color = Color.white;
+            portraitSR.sortingOrder = 2;
+
+            // Speech Bubble
+            var speechObj = customerArea.transform.Find("SpeechBubble")?.gameObject;
+            if (speechObj == null)
+            {
+                speechObj = new GameObject("SpeechBubble");
+                speechObj.transform.SetParent(customerArea.transform, false);
+            }
+            speechObj.transform.localPosition = new Vector3(0f, 1.65f, 0f);
+
+            // Bubble background plate
+            var bubbleBg = speechObj.transform.Find("BubbleBg")?.gameObject;
+            if (bubbleBg == null)
+            {
+                bubbleBg = new GameObject("BubbleBg");
+                bubbleBg.transform.SetParent(speechObj.transform, false);
+            }
+            var bgSR = bubbleBg.GetComponent<SpriteRenderer>();
+            if (bgSR == null) bgSR = bubbleBg.AddComponent<SpriteRenderer>();
+            bgSR.sprite = sprBubble;
+            bgSR.color = Color.white;
+            bgSR.sortingOrder = 13;
+
+            // Bubble text
+            var textObj = speechObj.transform.Find("SpeechText")?.gameObject;
+            if (textObj == null)
+            {
+                textObj = new GameObject("SpeechText");
+                textObj.transform.SetParent(speechObj.transform, false);
+            }
+            var speechTMP = textObj.GetComponent<TextMeshPro>();
+            if (speechTMP == null) speechTMP = textObj.AddComponent<TextMeshPro>();
+            speechTMP.fontSize = 2.0f;
+            speechTMP.alignment = TextAlignmentOptions.Center;
+            speechTMP.color = Color.white;
+            speechTMP.sortingOrder = 15;
+            speechTMP.rectTransform.sizeDelta = new Vector2(4.6f, 1.2f);
+            speechTMP.rectTransform.localPosition = new Vector3(0f, 0.14f, 0f);
+            speechTMP.text = "Been debugging for 6 hours straight...\nCould I get a warm <b>Classic Shoyu Ramen</b>?";
+
+            var ca = customerArea.GetComponent<CustomerAgent>();
+            if (ca == null) ca = customerArea.AddComponent<CustomerAgent>();
+
+            var customerData = AssetDatabase.LoadAssetAtPath<CustomerDataSO>("Assets/_Project/ScriptableObjects/Customers/NightCoderCustomer.asset");
+            var recipeData = AssetDatabase.LoadAssetAtPath<RecipeDataSO>("Assets/_Project/ScriptableObjects/Recipes/ClassicShoyuRamen.asset");
+            ca.SetReferences(portraitSR, speechObj, speechTMP, customerData, recipeData);
+
+            return ca;
+        }
+
+        private static void SetupOrderTicketUI(GameObject canvasObj, Sprite sprTicket)
+        {
+            var ticketObj = canvasObj.transform.Find("OrderTicketSlip")?.gameObject;
+            if (ticketObj == null)
+            {
+                ticketObj = new GameObject("OrderTicketSlip");
+                ticketObj.transform.SetParent(canvasObj.transform, false);
+            }
+
+            var img = ticketObj.GetComponent<Image>();
+            if (img == null) img = ticketObj.AddComponent<Image>();
+            if (sprTicket != null) img.sprite = sprTicket;
+
+            var rt = ticketObj.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = new Vector2(35f, -20f);
+            rt.sizeDelta = new Vector2(235f, 305f);
+
+            // OrderNumber
+            var numObj = ticketObj.transform.Find("OrderNumber")?.gameObject;
+            if (numObj == null)
+            {
+                numObj = new GameObject("OrderNumber");
+                numObj.transform.SetParent(ticketObj.transform, false);
+            }
+            var numTMP = numObj.GetComponent<TextMeshProUGUI>();
+            if (numTMP == null) numTMP = numObj.AddComponent<TextMeshProUGUI>();
+            numTMP.fontSize = 12.5f;
+            numTMP.fontStyle = FontStyles.Bold;
+            numTMP.color = new Color(0.36f, 0.25f, 0.22f, 1f);
+            numTMP.alignment = TextAlignmentOptions.Center;
+            var numRt = numTMP.rectTransform;
+            numRt.anchorMin = new Vector2(0.5f, 1f);
+            numRt.anchorMax = new Vector2(0.5f, 1f);
+            numRt.pivot = new Vector2(0.5f, 1f);
+            numRt.anchoredPosition = new Vector2(0f, -54f);
+            numRt.sizeDelta = new Vector2(200f, 20f);
+
+            // RecipeTitle
+            var titleObj = ticketObj.transform.Find("RecipeTitle")?.gameObject;
+            if (titleObj == null)
+            {
+                titleObj = new GameObject("RecipeTitle");
+                titleObj.transform.SetParent(ticketObj.transform, false);
+            }
+            var titleTMP = titleObj.GetComponent<TextMeshProUGUI>();
+            if (titleTMP == null) titleTMP = titleObj.AddComponent<TextMeshProUGUI>();
+            titleTMP.fontSize = 14.5f;
+            titleTMP.fontStyle = FontStyles.Bold;
+            titleTMP.color = new Color(0.13f, 0.13f, 0.13f, 1f);
+            titleTMP.alignment = TextAlignmentOptions.Center;
+            var titleRt = titleTMP.rectTransform;
+            titleRt.anchorMin = new Vector2(0.5f, 1f);
+            titleRt.anchorMax = new Vector2(0.5f, 1f);
+            titleRt.pivot = new Vector2(0.5f, 1f);
+            titleRt.anchoredPosition = new Vector2(0f, -76f);
+            titleRt.sizeDelta = new Vector2(200f, 24f);
+
+            // Details
+            var detailsObj = ticketObj.transform.Find("Details")?.gameObject;
+            if (detailsObj == null)
+            {
+                detailsObj = new GameObject("Details");
+                detailsObj.transform.SetParent(ticketObj.transform, false);
+            }
+            var detailsTMP = detailsObj.GetComponent<TextMeshProUGUI>();
+            if (detailsTMP == null) detailsTMP = detailsObj.AddComponent<TextMeshProUGUI>();
+            detailsTMP.fontSize = 12f;
+            detailsTMP.color = new Color(0.22f, 0.28f, 0.31f, 1f);
+            detailsTMP.alignment = TextAlignmentOptions.TopLeft;
+            var detailsRt = detailsTMP.rectTransform;
+            detailsRt.anchorMin = new Vector2(0.5f, 1f);
+            detailsRt.anchorMax = new Vector2(0.5f, 1f);
+            detailsRt.pivot = new Vector2(0.5f, 1f);
+            detailsRt.anchoredPosition = new Vector2(0f, -106f);
+            detailsRt.sizeDelta = new Vector2(185f, 135f);
+
+            // Reward
+            var rewardObj = ticketObj.transform.Find("Reward")?.gameObject;
+            if (rewardObj == null)
+            {
+                rewardObj = new GameObject("Reward");
+                rewardObj.transform.SetParent(ticketObj.transform, false);
+            }
+            var rewardTMP = rewardObj.GetComponent<TextMeshProUGUI>();
+            if (rewardTMP == null) rewardTMP = rewardObj.AddComponent<TextMeshProUGUI>();
+            rewardTMP.fontSize = 13f;
+            rewardTMP.fontStyle = FontStyles.Bold;
+            rewardTMP.color = new Color(0.18f, 0.49f, 0.20f, 1f);
+            rewardTMP.alignment = TextAlignmentOptions.Center;
+            var rewardRt = rewardTMP.rectTransform;
+            rewardRt.anchorMin = new Vector2(0.5f, 1f);
+            rewardRt.anchorMax = new Vector2(0.5f, 1f);
+            rewardRt.pivot = new Vector2(0.5f, 1f);
+            rewardRt.anchoredPosition = new Vector2(0f, -252f);
+            rewardRt.sizeDelta = new Vector2(200f, 22f);
+
+            var ticketUI = ticketObj.GetComponent<OrderTicketUI>();
+            if (ticketUI == null) ticketUI = ticketObj.AddComponent<OrderTicketUI>();
+
+            var so = new SerializedObject(ticketUI);
+            so.FindProperty("orderNumberText").objectReferenceValue = numTMP;
+            so.FindProperty("recipeTitleText").objectReferenceValue = titleTMP;
+            so.FindProperty("detailsText").objectReferenceValue = detailsTMP;
+            so.FindProperty("rewardText").objectReferenceValue = rewardTMP;
+            so.FindProperty("ticketPanel").objectReferenceValue = ticketObj;
+            so.ApplyModifiedProperties();
+        }
+
+        private static void SetupWalletHUD(GameObject canvasObj, Sprite sprCoin)
+        {
+            var walletObj = canvasObj.transform.Find("WalletPanel")?.gameObject;
+            if (walletObj == null)
+            {
+                walletObj = new GameObject("WalletPanel");
+                walletObj.transform.SetParent(canvasObj.transform, false);
+            }
+
+            var img = walletObj.GetComponent<Image>();
+            if (img == null) img = walletObj.AddComponent<Image>();
+            img.color = new Color(0.08f, 0.10f, 0.16f, 0.90f);
+
+            var rt = walletObj.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(1f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(1f, 1f);
+            rt.anchoredPosition = new Vector2(-35f, -20f);
+            rt.sizeDelta = new Vector2(185f, 52f);
+
+            // Coin Icon
+            var iconObj = walletObj.transform.Find("CoinIcon")?.gameObject;
+            if (iconObj == null)
+            {
+                iconObj = new GameObject("CoinIcon");
+                iconObj.transform.SetParent(walletObj.transform, false);
+            }
+            var coinImg = iconObj.GetComponent<Image>();
+            if (coinImg == null) coinImg = iconObj.AddComponent<Image>();
+            if (sprCoin != null) coinImg.sprite = sprCoin;
+            coinImg.rectTransform.anchoredPosition = new Vector2(-55f, 0f);
+            coinImg.rectTransform.sizeDelta = new Vector2(34f, 34f);
+
+            // Balance Text
+            var balanceObj = walletObj.transform.Find("BalanceText")?.gameObject;
+            if (balanceObj == null)
+            {
+                balanceObj = new GameObject("BalanceText");
+                balanceObj.transform.SetParent(walletObj.transform, false);
+            }
+            var balanceTMP = balanceObj.GetComponent<TextMeshProUGUI>();
+            if (balanceTMP == null) balanceTMP = balanceObj.AddComponent<TextMeshProUGUI>();
+            balanceTMP.text = "<b>¥ 1,000</b>";
+            balanceTMP.fontSize = 20f;
+            balanceTMP.color = new Color(1.0f, 0.84f, 0.20f, 1f);
+            balanceTMP.alignment = TextAlignmentOptions.Center;
+            balanceTMP.rectTransform.anchoredPosition = new Vector2(20f, 0f);
+            balanceTMP.rectTransform.sizeDelta = new Vector2(110f, 36f);
+
+            // Floating Reward Popup
+            var popupObj = walletObj.transform.Find("FloatingPopup")?.gameObject;
+            if (popupObj == null)
+            {
+                popupObj = new GameObject("FloatingPopup");
+                popupObj.transform.SetParent(walletObj.transform, false);
+            }
+            var popupTMP = popupObj.GetComponent<TextMeshProUGUI>();
+            if (popupTMP == null) popupTMP = popupObj.AddComponent<TextMeshProUGUI>();
+            popupTMP.text = "+¥1,050";
+            popupTMP.fontSize = 22f;
+            popupTMP.fontStyle = FontStyles.Bold;
+            popupTMP.color = new Color(1.0f, 0.94f, 0.55f, 1f);
+            popupTMP.alignment = TextAlignmentOptions.Center;
+            popupTMP.rectTransform.anchoredPosition = new Vector2(0f, -42f);
+            popupTMP.rectTransform.sizeDelta = new Vector2(160f, 35f);
+            popupObj.SetActive(false);
+
+            var walletHUD = walletObj.GetComponent<WalletHUD>();
+            if (walletHUD == null) walletHUD = walletObj.AddComponent<WalletHUD>();
+
+            var so = new SerializedObject(walletHUD);
+            so.FindProperty("balanceText").objectReferenceValue = balanceTMP;
+            so.FindProperty("floatingPopupText").objectReferenceValue = popupTMP;
             so.ApplyModifiedProperties();
         }
 
