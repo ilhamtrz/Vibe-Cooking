@@ -61,7 +61,98 @@ flowchart TD
 
 ---
 
-## 3. Screen Layout & Counter Spatial Design
+## 3. Scene Flow & Main Menu Architecture
+
+The game uses a two-scene architecture separating frontend navigation and settings from active gameplay:
+
+```mermaid
+flowchart LR
+    A["MainMenuScene\n(Build Index: 0)"] -->|Start Button Click| B["GameScene\n(Build Index: 1)"]
+    A <-->|Toggle Settings Panel| C["Settings Modal Overlay\n(Resolution, Screen Mode, Audio)"]
+    B -->|Pause / Return to Menu| A
+```
+
+### 3.1 Scene Hierarchy & Setup
+1. **`Assets/Scenes/MainMenuScene.unity` (Build Index 0):**
+   * Default starting scene when the game launches.
+   * Houses the title branding, background mood visuals, menu buttons, and the settings modal panel.
+2. **`Assets/Scenes/GameScene.unity` (Build Index 1):**
+   * The core cooking counter gameplay scene.
+
+---
+
+### 3.2 Main Menu Interface & Interactions
+
+#### Layout & Presentation:
+* **Background:** Cozy late-night alleyway exterior of the ramen stall with soft rain falling and glowing paper lanterns (`bg_main_menu.png` or an animated 2D camera).
+* **Title Logo:** Stylized warm neon logo reading **"Vibe Cooking"** with a gentle idle pulsing glow.
+* **Vertical Navigation Buttons:**
+  * **START:**
+    * Plays a soft button click audio (`sfx_btn_click.wav`).
+    * Triggers a smooth fade-to-black transition $\to$ loads `GameScene` via `SceneManager.LoadScene("GameScene")`.
+  * **SETTINGS:**
+    * Opens the **Settings Modal Panel** as an animated popup overlay.
+  * **EXIT:**
+    * Exits the game via `Application.Quit()`.
+    * In Unity Editor Play Mode: handles `#if UNITY_EDITOR UnityEditor.EditorApplication.isPlaying = false; #endif`.
+
+---
+
+### 3.3 Settings Modal Panel Specification
+
+The Settings panel allows players to configure display and sound preferences with full `PlayerPrefs` persistence.
+
+```
++-------------------------------------------------------------+
+|                      [X] SETTINGS                           |
++-------------------------------------------------------------+
+|  DISPLAY                                                    |
+|  ---------------------------------------------------------  |
+|  Resolution:    [ 1920 x 1080 (16:9)                   ▼ ]  |
+|  Screen Mode:   [ Fullscreen | Borderless | Windowed   ▼ ]  |
+|                                                             |
+|  AUDIO                                                      |
+|  ---------------------------------------------------------  |
+|  Master Volume: [======O----------------] 60%               |
+|  BGM (Music):   [========O--------------] 70%               |
+|  SFX (ASMR):    [==========O------------] 85%               |
+|                                                             |
+|                    [ BACK / SAVE ]                          |
++-------------------------------------------------------------+
+```
+
+#### A. Display / Screen Options
+1. **Resolution Dropdown:**
+   * Populated dynamically at runtime via `Screen.resolutions`.
+   * Filters out refresh rate duplicates and standardizes to the user's supported aspect ratios (e.g., `1920x1080`, `1600x900`, `1366x768`, `1280x720`).
+   * Automatically selects the player's current resolution upon launch.
+2. **Screen Mode (Window Mode) Dropdown / Radio:**
+   * **Fullscreen:** `FullScreenMode.ExclusiveFullScreen` (or `FullScreenWindow`).
+   * **Borderless Windowed:** `FullScreenMode.FullScreenWindow`.
+   * **Windowed:** `FullScreenMode.Windowed`.
+   * Executed via:
+     ```csharp
+     Screen.SetResolution(selectedWidth, selectedHeight, selectedScreenMode);
+     ```
+
+#### B. Audio Options (Volume Sliders)
+* **Master Volume Slider (0.0 to 1.0, Default: 0.8):** Global volume multiplier.
+* **BGM Volume Slider (0.0 to 1.0, Default: 0.7):** Adjusts background lo-fi tracks.
+* **SFX Volume Slider (0.0 to 1.0, Default: 0.85):** Adjusts tactile ASMR cooking and customer sounds.
+* **Audio Implementation:** Applied through an `AudioMixer` using logarithmic attenuation:
+  ```csharp
+  float dB = (sliderValue > 0.001f) ? Mathf.Log10(sliderValue) * 20f : -80f;
+  audioMixer.SetFloat("MasterVolume", dB);
+  ```
+
+#### C. Persistence & Settings Manager
+* All settings save automatically on modification or when clicking **Back / Save** using `PlayerPrefs`:
+  * `ResolutionWidth`, `ResolutionHeight`, `ScreenMode`, `MasterVol`, `BgmVol`, `SfxVol`.
+* A persistent `SettingsManager.cs` (`DontDestroyOnLoad`) loads and applies these settings at game launch before the menu renders.
+
+---
+
+## 4. Screen Layout & Counter Spatial Design
 
 The game is viewed from a **single fixed 2D orthographic perspective** (eye-level customer counter with an angled top-down view of the prep counter below).
 
@@ -91,11 +182,11 @@ The game is viewed from a **single fixed 2D orthographic perspective** (eye-leve
 
 ---
 
-## 4. Detailed Cooking & Station Mechanics
+## 5. Detailed Cooking & Station Mechanics
 
 Cooking in *Vibe Cooking* is split into 4 tactile stations. Each station focuses on responsive animation, juicy audio, and intuitive mouse gestures.
 
-### 4.1 Station A: The Bowl & Broth Station
+### 5.1 Station A: The Bowl & Broth Station
 
 #### Interaction & Mechanics:
 1. **Spawn Bowl:** A ceramic bowl rests in the center assembly zone.
@@ -109,7 +200,7 @@ Cooking in *Vibe Cooking* is split into 4 tactile stations. Each station focuses
 
 ---
 
-### 4.2 Station B: The Noodle Station (Timer & Water Shake)
+### 5.2 Station B: The Noodle Station (Timer & Water Shake)
 
 #### Interaction & Mechanics:
 1. **Drop Noodles:** Click a raw noodle bundle from the prep board and drop it into an open boiling basket.
@@ -132,7 +223,7 @@ Cooking in *Vibe Cooking* is split into 4 tactile stations. Each station focuses
 
 ---
 
-### 4.3 Station C: Topping & Plating Station (Drag-and-Drop Freedom)
+### 5.3 Station C: Topping & Plating Station (Drag-and-Drop Freedom)
 
 Toppings sit in organized bamboo or stainless steel ingredient trays along the right side of the counter.
 
@@ -151,7 +242,7 @@ Toppings sit in organized bamboo or stainless steel ingredient trays along the r
 
 ---
 
-### 4.4 Station D: Serving & Customer Reaction
+### 5.4 Station D: Serving & Customer Reaction
 
 1. Once satisfied, the player drags the completed bowl to the customer's counter space (or clicks the brass **Serve Bell**).
 2. The active customer leans forward:
@@ -163,9 +254,9 @@ Toppings sit in organized bamboo or stainless steel ingredient trays along the r
 
 ---
 
-## 5. Customer & Order System
+## 6. Customer & Order System
 
-### 5.1 Customer Archetypes & Vibe Dialogues
+### 6.1 Customer Archetypes & Vibe Dialogues
 
 Customers are designed to feel like regulars in a peaceful late-night manga:
 
@@ -176,7 +267,7 @@ Customers are designed to feel like regulars in a peaceful late-night manga:
 | **The High School Regular** | Cheerful, uniform, loves visual appeal. | Specific order | *"Classic Shoyu Ramen with naruto, egg, and extra scallions! Make it pretty for my photo!"* |
 | **The Stray Calico Cat** | Sits on the end stool occasionally on quiet nights. | Simple treat | Orders just a slice of Chashu in a small dish. Rewards the player with a lucky charm or rare coin. |
 
-### 5.2 Scoring & Tip Algorithm
+### 6.2 Scoring & Tip Algorithm
 
 Evaluation is transparent, encouraging, and never punishing:
 
@@ -190,9 +281,9 @@ $$\text{Final Payout} = \text{Base Price} + \text{Accuracy Bonus} + \text{Firmne
 
 ---
 
-## 6. The "Lo-Fi Vibe" & Sensory Systems
+## 7. The "Lo-Fi Vibe" & Sensory Systems
 
-### 6.1 ASMR Sound Design Palette
+### 7.1 ASMR Sound Design Palette
 Audio is a core pillar of the game. Every action has dedicated, high-fidelity tactile audio:
 
 * `broth_simmer_ambient.wav`: Soft, continuous loop of simmering broth pots.
@@ -204,7 +295,7 @@ Audio is a core pillar of the game. Every action has dedicated, high-fidelity ta
 * `slurp_happy.wav`: Deeply satisfying ramen slurp.
 * `rain_on_window.wav`: Gentle background rainfall loop with optional soft thunder.
 
-### 6.2 The Interactive Lo-Fi Cassette Player
+### 7.2 The Interactive Lo-Fi Cassette Player
 * A retro cassette tape player sits on the right corner of the counter.
 * **Controls:**
   * Click **Play / Pause**.
@@ -214,21 +305,21 @@ Audio is a core pillar of the game. Every action has dedicated, high-fidelity ta
 
 ---
 
-## 7. Economy & Upgrade Shop
+## 8. Economy & Upgrade Shop
 
 Between service shifts (or accessible via a small ledger notebook on the counter), players spend their earned Yen:
 
-### 7.1 Kitchen Upgrades
+### 8.1 Kitchen Upgrades
 * **Twin Noodle Boiler:** Adds a 2nd noodle basket to prep two orders simultaneously.
 * **Thermal Broth Keepers:** Improves broth visual effects and pouring speed.
 * **Sous-Vide Chashu Torch:** Unlocks a mini blowtorch tool to sear chashu slices directly in the bowl for +¥120 tip per bowl.
 
-### 7.2 Ingredient Unlocks
+### 8.2 Ingredient Unlocks
 * **Level 1 (Default):** Shoyu Broth, Thin Noodles, Chashu, Scallions, Tamago Egg.
 * **Level 2:** Tonkotsu Broth, Menma (Bamboo Shoots), Nori Sheets.
 * **Level 3:** Miso Broth, Spicy Chili Rayu, Narutomaki Fishcake, Butter Corn.
 
-### 7.3 Stall Decor & Vibe Upgrades
+### 8.3 Stall Decor & Vibe Upgrades
 * **Ceramic Bowls:** Unlock *Classic Indigo Wave*, *Matte Charcoal*, *Sakura Blossom Pink*.
 * **Atmospheric Lighting:** Dim warm Edison bulbs, paper chochin lanterns, fairy string lights.
 * **Desk Accents:** Maneki-Neko (Lucky Cat that purrs when clicked), Bonsai plant, vintage ceramic teapot.
@@ -236,7 +327,7 @@ Between service shifts (or accessible via a small ledger notebook on the counter
 
 ---
 
-## 8. Modular Technical Architecture (Unity 2D / C#)
+## 9. Modular Technical Architecture (Unity 2D / C#)
 
 To support seamless "vibe coding" across multiple development prompts and chats, the codebase is structured around **ScriptableObjects** and **loose event decoupling**:
 
@@ -244,13 +335,13 @@ To support seamless "vibe coding" across multiple development prompts and chats,
 Assets/
 ├── _Project/
 │   ├── Scripts/
-│   │   ├── Core/               # Game state, Service Loop, Economy
+│   │   ├── Core/               # Game state, Service Loop, Economy, SettingsManager, SceneLoader
 │   │   ├── Data/               # ScriptableObjects (Recipes, Ingredients, Customers)
 │   │   ├── Stations/           # BrothStation, NoodleStation, PlatingStation
 │   │   ├── Items/              # Bowl, IngredientInstance, NoodleBasket
 │   │   ├── Customer/           # CustomerAgent, OrderTicket, DialogueUI
 │   │   ├── Vibe/               # LoFiRadio, RainController, SteamFX
-│   │   └── UI/                 # HUD, ShopModal, ScorePopup
+│   │   └── UI/                 # MainMenuController, SettingsPanelUI, HUD, ShopModal, ScorePopup
 │   ├── ScriptableObjects/
 │   │   ├── Ingredients/
 │   │   ├── Recipes/
@@ -261,7 +352,7 @@ Assets/
 │   └── Audio/
 ```
 
-### 8.1 Key ScriptableObjects
+### 9.1 Key ScriptableObjects
 
 1. **`IngredientDataSO`**
    * `string id`
@@ -285,7 +376,7 @@ Assets/
    * `List<string> satisfactionDialogues`
    * `List<RecipeDataSO> favoriteRecipes`
 
-### 8.2 Event-Driven Architecture (C# Actions)
+### 9.2 Event-Driven Architecture (C# Actions)
 Modules communicate via a centralized `GameEvents` hub to prevent tight coupling:
 * `GameEvents.OnOrderCreated(OrderTicket order)`
 * `GameEvents.OnBowlUpdated(BowlInstance bowl)`
@@ -295,19 +386,30 @@ Modules communicate via a centralized `GameEvents` hub to prevent tight coupling
 
 ---
 
-## 9. Phased Implementation Roadmap (For Vibe Coding)
+## 10. Phased Implementation Roadmap (For Vibe Coding)
 
 This roadmap defines the strict order of implementation for future coding sessions:
 
-### **Phase 1: Minimal Viable Prototype (Core Assembly MVP)**
-* **Goal:** A working interactive loop from order to coin payout on a single static counter.
+### **Phase 1: Minimal Viable Prototype (Core Assembly MVP & Main Menu)**
+* **Goal:** A complete foundational flow: Boot into Main Menu, configure display/sound settings, start game, prepare a ramen bowl, serve a customer, and earn coins.
 * **Scope:**
-  * Single 2D Counter Scene layout with placeholder sprites.
-  * 1 Broth Pot (Click to fill bowl).
-  * 1 Noodle Basket (Drop noodle, boil timer, drop into bowl).
-  * 3 Toppings (Drag-and-drop: Chashu, Egg, Scallions).
-  * 1 Customer arriving at counter with simple ticket order.
-  * Serve button $\to$ Accuracy validation $\to$ Coin reward popup.
+  * **Main Menu & Settings (Separate Scene):**
+    * Setup `MainMenuScene.unity` (Build Index 0) and `GameScene.unity` (Build Index 1).
+    * `MainMenuController.cs`:
+      * **Start:** Transitions smoothly to `GameScene.unity`.
+      * **Settings:** Opens the Settings Modal Panel.
+      * **Exit:** Calls `Application.Quit()` (with Unity Editor exit support).
+    * `SettingsPanelUI.cs` & `SettingsManager.cs`:
+      * **Screen Settings:** Dynamic Resolution dropdown (from `Screen.resolutions`) + Screen Mode (Fullscreen, Borderless, Windowed).
+      * **Audio Settings:** Master Volume, BGM Volume, and SFX Volume sliders.
+      * **Persistence:** Auto-save to and restore from `PlayerPrefs`.
+  * **Core In-Game Ramen Cooking Loop:**
+    * Single 2D Counter Scene layout with placeholder sprites.
+    * 1 Broth Pot (Click to fill bowl with broth).
+    * 1 Noodle Basket (Drop noodle bundle, boil timer, drop into bowl).
+    * 3 Toppings (Drag-and-drop: Chashu, Egg, Scallions).
+    * 1 Customer arriving at counter with simple ticket order.
+    * Serve button $\to$ Accuracy validation $\to$ Coin reward popup.
 
 ### **Phase 2: Tactile Feel & Sensory Polish (The "Vibe" Layer)**
 * **Goal:** Make the prototype feel deeply satisfying and lo-fi.
@@ -337,7 +439,7 @@ This roadmap defines the strict order of implementation for future coding sessio
 
 ---
 
-## 10. Complete Asset Production Manifest & Specifications
+## 11. Complete Asset Production Manifest & Specifications
 
 This manifest lists every required asset needed across art, audio, visual effects, and music. Assets are categorized with exact specifications, naming conventions, and phase priorities for easy generation or sourcing.
 
@@ -401,6 +503,12 @@ This manifest lists every required asset needed across art, audio, visual effect
 #### F. UI & HUD Elements
 | Asset ID / Filename | Description | Format & Size | Phase Priority |
 | :--- | :--- | :--- | :--- |
+| `ui_main_menu_bg.png` | Late-night exterior ramen stall backdrop for Main Menu. | 1920x1080 PNG | **Phase 1 (MVP)** |
+| `ui_title_logo.png` | "Vibe Cooking" stylized neon / cozy typography logo. | 800x400 PNG | **Phase 1 (MVP)** |
+| `ui_btn_menu_normal.png` / `_hover.png` | Cozy wooden / rounded menu button frames. | 384x96 PNG | **Phase 1 (MVP)** |
+| `ui_panel_settings.png` | Dark wooden / paper texture modal dialog for Settings. | 800x600 PNG | **Phase 1 (MVP)** |
+| `ui_slider_elements.png` | Slider track, fill, and round handle for Volume controls. | Sprite atlas | **Phase 1 (MVP)** |
+| `ui_dropdown_frame.png` | Cozy framed dropdown box for Resolution & Screen Mode. | 9-sliced PNG | **Phase 1 (MVP)** |
 | `ui_ticket_order.png` | Hanging aged paper order slip with wooden clothespin clip. | 256x384 PNG | **Phase 1 (MVP)** |
 | `ui_speech_bubble.png` | Cozy dialogue bubble with soft rounded corners. | 9-sliced PNG | **Phase 1 (MVP)** |
 | `ui_coins_sprite_sheet.png`| Copper (¥10), Silver (¥100), Gold (¥500) coin sprites. | 64x64 PNG per coin | **Phase 1 (MVP)** |
@@ -410,7 +518,7 @@ This manifest lists every required asset needed across art, audio, visual effect
 
 ---
 
-### 10.2 VFX & Particle Systems
+### 11.2 VFX & Particle Systems
 
 | VFX Asset ID | Visual Description | Implementation | Phase Priority |
 | :--- | :--- | :--- | :--- |
@@ -423,7 +531,7 @@ This manifest lists every required asset needed across art, audio, visual effect
 
 ---
 
-### 10.3 Audio Assets (ASMR SFX & Ambience)
+### 11.3 Audio Assets (ASMR SFX & Ambience)
 
 *All audio files should be 44.1 kHz, 16-bit WAV (uncompressed) for immediate responsiveness and high clarity.*
 
@@ -448,9 +556,10 @@ This manifest lists every required asset needed across art, audio, visual effect
 | `sfx_blowtorch_sear.wav` | Focused gas flame hiss with subtle chashu sizzle. | Phase 4 |
 | `sfx_bell_ding.wav` | Clean, resonant brass desk bell ding (*ding!*). | **Phase 1 (MVP)** |
 
-#### C. Customer & Economy SFX
+#### C. Customer, UI & Menu SFX
 | Sound File | Sound Description & Action Triggered | Phase Priority |
 | :--- | :--- | :--- |
+| `sfx_btn_click.wav` | Soft tactile click on menu buttons and settings toggles. | **Phase 1 (MVP)** |
 | `sfx_customer_door_chime.wav`| Little wind chime or counter greeting as customer steps up. | Phase 2 |
 | `sfx_order_ticket_snap.wav` | Crisp paper rustle when an order ticket appears on the rack. | **Phase 1 (MVP)** |
 | `sfx_ramen_slurp_delight.wav`| Energetic, authentic, delicious noodle slurp. | **Phase 1 (MVP)** |
@@ -468,7 +577,7 @@ This manifest lists every required asset needed across art, audio, visual effect
 
 ---
 
-### 10.4 Music Soundtracks (Lo-Fi Chillhop Beats)
+### 11.4 Music Soundtracks (Lo-Fi Chillhop Beats)
 
 *Format: High-quality MP3 / OGG loop (BPM ~70–85), master volume leveled to sit gently beneath cooking SFX.*
 
@@ -481,16 +590,34 @@ This manifest lists every required asset needed across art, audio, visual effect
 
 ---
 
-### 10.5 Phase 1 (MVP) Asset Checklist Summary
+### 11.5 Phase 1 (MVP) Asset Checklist Summary
 
 To start building immediately without waiting for hundreds of assets, here is the **absolute minimum list (MVP)** to generate or placeholder:
 
+#### Scenes & Flow
+* [ ] `MainMenuScene.unity` (Build Index 0)
+* [ ] `GameScene.unity` (Build Index 1)
+
+#### Main Menu & UI Assets
+* [ ] `ui_main_menu_bg.png` (Alleyway night exterior)
+* [ ] `ui_title_logo.png` ("Vibe Cooking" title logo)
+* [ ] `ui_btn_menu_normal.png` / `_hover.png` (Start, Settings, Exit buttons)
+* [ ] `ui_panel_settings.png` (Settings modal panel frame)
+* [ ] `ui_slider_elements.png` & `ui_dropdown_frame.png` (Volume sliders & resolution dropdown)
+
+#### In-Game Counter & Cookware
 * [ ] `fg_counter_wood.png` (Wood counter surface)
 * [ ] `bowl_ceramic_default.png` (Ramen bowl)
 * [ ] `pot_broth_shoyu.png` (Shoyu pot)
 * [ ] `pot_noodle_boiler.png` + `strainer_basket_empty.png` (Noodle boiler & basket)
+
+#### Ingredients & Customer
 * [ ] 4 Ingredient Sprites: `ing_noodle_raw.png`, `ing_chashu_plated.png`, `ing_tamago_plated.png`, `ing_scallion_plated.png`
 * [ ] 1 Customer: `char_night_coder` (Idle & Eating frames)
-* [ ] 1 UI Set: `ui_ticket_order.png`, `ui_coin_silver.png`, `ui_speech_bubble.png`, `bell_counter_brass.png`
-* [ ] 6 Core SFX: `sfx_ladle_scoop`, `sfx_broth_pour`, `sfx_noodle_plop_broth`, `sfx_topping_place_soft`, `sfx_ramen_slurp_delight`, `sfx_coin_drop_counter`
+* [ ] In-Game UI: `ui_ticket_order.png`, `ui_coin_silver.png`, `ui_speech_bubble.png`, `bell_counter_brass.png`
+
+#### Audio (SFX & Music)
+* [ ] 1 UI SFX: `sfx_btn_click.wav`
+* [ ] 6 Core Kitchen SFX: `sfx_ladle_scoop`, `sfx_broth_pour`, `sfx_noodle_plop_broth`, `sfx_topping_place_soft`, `sfx_ramen_slurp_delight`, `sfx_coin_drop_counter`
 * [ ] 1 Music Track: `Track 01: "Midnight Drizzle"`
+
