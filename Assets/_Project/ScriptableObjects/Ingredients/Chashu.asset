@@ -15,8 +15,8 @@ MonoBehaviour:
   id: chashu
   displayName: Chashu Pork
   type: 2
-  icon: {fileID: 0}
-  bowlVisual: {fileID: 0}
+  icon: {fileID: 21300000, guid: b09136388582ceb41adaf984c7a6fa67, type: 3}
+  bowlVisual: {fileID: 21300000, guid: b09136388582ceb41adaf984c7a6fa67, type: 3}
   placeholderColor: {r: 0.8, g: 0.52, b: 0.25, a: 1}
   placeSound: {fileID: 0}
   cost: 100

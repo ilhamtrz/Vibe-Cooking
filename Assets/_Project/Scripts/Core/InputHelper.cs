@@ -17,8 +17,10 @@ namespace VibeCooking
                     Vector2 pos = Mouse.current.position.ReadValue();
                     return new Vector3(pos.x, pos.y, 0f);
                 }
-#endif
+                return Vector3.zero;
+#else
                 return Input.mousePosition;
+#endif
             }
         }
 
@@ -30,8 +32,10 @@ namespace VibeCooking
                 if (button == 0) return Mouse.current.leftButton.wasPressedThisFrame;
                 if (button == 1) return Mouse.current.rightButton.wasPressedThisFrame;
             }
-#endif
+            return false;
+#else
             return Input.GetMouseButtonDown(button);
+#endif
         }
 
         public static bool IsMouseButton(int button = 0)
@@ -42,8 +46,10 @@ namespace VibeCooking
                 if (button == 0) return Mouse.current.leftButton.isPressed;
                 if (button == 1) return Mouse.current.rightButton.isPressed;
             }
-#endif
+            return false;
+#else
             return Input.GetMouseButton(button);
+#endif
         }
 
         public static bool IsMouseButtonUp(int button = 0)
@@ -54,17 +60,33 @@ namespace VibeCooking
                 if (button == 0) return Mouse.current.leftButton.wasReleasedThisFrame;
                 if (button == 1) return Mouse.current.rightButton.wasReleasedThisFrame;
             }
-#endif
+            return false;
+#else
             return Input.GetMouseButtonUp(button);
+#endif
         }
 
-        public static Vector2 GetMouseWorldPosition(Camera cam = null)
+        public static Vector3 GetMouseWorldPosition(Camera cam = null)
         {
             if (cam == null) cam = Camera.main;
-            if (cam == null) return Vector2.zero;
-            Vector3 screenPos = MouseScreenPosition;
-            screenPos.z = -cam.transform.position.z;
-            return cam.ScreenToWorldPoint(screenPos);
+            if (cam == null) return Vector3.zero;
+
+#if ENABLE_INPUT_SYSTEM
+            if (Mouse.current != null)
+            {
+                Vector2 screenPos = Mouse.current.position.ReadValue();
+                Vector3 worldPos = cam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, -cam.transform.position.z));
+                worldPos.z = 0f;
+                return worldPos;
+            }
+            return Vector3.zero;
+#else
+            Vector3 legacyPos = Input.mousePosition;
+            legacyPos.z = -cam.transform.position.z;
+            Vector3 res = cam.ScreenToWorldPoint(legacyPos);
+            res.z = 0f;
+            return res;
+#endif
         }
     }
 }

@@ -15,8 +15,8 @@ MonoBehaviour:
   id: scallions
   displayName: Scallions
   type: 5
-  icon: {fileID: 0}
-  bowlVisual: {fileID: 0}
+  icon: {fileID: 21300000, guid: fc986db43c6da85489aef47b4674157f, type: 3}
+  bowlVisual: {fileID: 21300000, guid: fc986db43c6da85489aef47b4674157f, type: 3}
   placeholderColor: {r: 0.2, g: 0.8, b: 0.2, a: 1}
   placeSound: {fileID: 0}
   cost: 30
