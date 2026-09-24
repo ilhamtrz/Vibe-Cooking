@@ -15,7 +15,11 @@ namespace VibeCooking
 
     public class CustomerAgent : MonoBehaviour
     {
-        [Header("Customer Data")]
+        [Header("Customer Pool")]
+        [SerializeField] private List<CustomerDataSO> customerPool = new List<CustomerDataSO>();
+        private int lastCustomerIndex = -1;
+
+        [Header("Active Customer Data")]
         [SerializeField] private CustomerDataSO customerData;
         [SerializeField] private RecipeDataSO currentRecipe;
         [SerializeField] private NoodleFirmness requestedFirmness = NoodleFirmness.Futsuu;
@@ -26,11 +30,12 @@ namespace VibeCooking
         [SerializeField] private TMP_Text speechText;
 
         [Header("State")]
-        [SerializeField] private CustomerState currentState = CustomerState.Arriving;
+        [SerializeField] private CustomerState currentState = CustomerState.WaitingForOrder;
 
-        private OrderTicket activeTicket;
+        [SerializeField] private OrderTicket activeTicket;
         private int orderCounter = 1;
 
+        public List<CustomerDataSO> CustomerPool => customerPool;
         public CustomerDataSO CustomerData => customerData;
         public RecipeDataSO CurrentRecipe => currentRecipe;
         public NoodleFirmness RequestedFirmness => requestedFirmness;
@@ -44,43 +49,71 @@ namespace VibeCooking
 
         private void SetupCustomerDataIfNull()
         {
-            if (customerData == null)
+            if (customerPool == null) customerPool = new List<CustomerDataSO>();
+
+            if (customerPool.Count == 0)
             {
-                customerData = Resources.Load<CustomerDataSO>("ScriptableObjects/Customers/NightCoderCustomer");
-                if (customerData == null)
+                var loaded = Resources.FindObjectsOfTypeAll<CustomerDataSO>();
+                if (loaded != null && loaded.Length > 0)
                 {
-                    // Fallback search
-                    var allCustomers = Resources.FindObjectsOfTypeAll<CustomerDataSO>();
-                    if (allCustomers.Length > 0) customerData = allCustomers[0];
+                    customerPool.AddRange(loaded);
                 }
             }
 
-            if (portraitRenderer != null && customerData != null && customerData.portrait != null)
+            if (customerData == null && customerPool.Count > 0)
             {
-                portraitRenderer.sprite = customerData.portrait;
+                customerData = customerPool[0];
             }
+            else if (customerData == null)
+            {
+                customerData = Resources.Load<CustomerDataSO>("ScriptableObjects/Customers/NightCoderCustomer");
+            }
+        }
+
+        public void SetCustomerPool(List<CustomerDataSO> pool)
+        {
+            customerPool.Clear();
+            if (pool != null) customerPool.AddRange(pool);
         }
 
         public void SpawnNewOrder()
         {
             currentState = CustomerState.WaitingForOrder;
 
-            // Pick recipe
+            // 1. Pick Customer from Pool (avoid immediate repeat if pool > 1)
+            if (customerPool != null && customerPool.Count > 0)
+            {
+                int chosenIndex = Random.Range(0, customerPool.Count);
+                if (customerPool.Count > 1 && chosenIndex == lastCustomerIndex)
+                {
+                    chosenIndex = (chosenIndex + 1) % customerPool.Count;
+                }
+                lastCustomerIndex = chosenIndex;
+                customerData = customerPool[chosenIndex];
+            }
+
+            // 2. Update Portrait
+            if (portraitRenderer != null && customerData != null && customerData.portrait != null)
+            {
+                portraitRenderer.sprite = customerData.portrait;
+            }
+
+            // 3. Pick Recipe & Firmness
             if (customerData != null && customerData.favoriteRecipes.Count > 0)
             {
-                currentRecipe = customerData.favoriteRecipes[0];
+                currentRecipe = customerData.favoriteRecipes[Random.Range(0, customerData.favoriteRecipes.Count)];
                 requestedFirmness = customerData.preferredFirmness;
             }
 
-            // Arrival dialogue
-            string arrivalMsg = "Been debugging for 6 hours straight...\nCould I get a warm <b>Classic Shoyu Ramen</b> with <b>Futsuu</b> noodles?";
+            // 4. Arrival dialogue
+            string arrivalMsg = "Could I get a warm bowl of ramen?";
             if (customerData != null && customerData.arrivalDialogues.Count > 0)
             {
                 arrivalMsg = customerData.arrivalDialogues[Random.Range(0, customerData.arrivalDialogues.Count)];
             }
             SetSpeechDialogue(arrivalMsg);
 
-            // Create OrderTicket
+            // 5. Create / Update OrderTicket
             if (activeTicket == null)
             {
                 var ticketObj = new GameObject("ActiveOrderTicket");
@@ -90,12 +123,12 @@ namespace VibeCooking
 
             activeTicket.Initialize(orderCounter++, currentRecipe, requestedFirmness, customerData);
             GameEvents.TriggerOrderCreated(activeTicket);
-            Debug.Log($"<color=cyan>[CustomerAgent] New Order #{activeTicket.OrderNumber}: {currentRecipe.recipeName} ({requestedFirmness})</color>");
+            Debug.Log($"<color=cyan>[CustomerAgent] Customer '{customerData?.customerName}' ordered #{activeTicket.OrderNumber}: {currentRecipe?.recipeName} ({requestedFirmness})</color>");
         }
 
         public void ServeOrder(BowlInstance bowl)
         {
-            if (currentState != CustomerState.WaitingForOrder || bowl == null || currentRecipe == null)
+            if (currentState == CustomerState.Eating || currentState == CustomerState.Departing || bowl == null || currentRecipe == null)
                 return;
 
             currentState = CustomerState.Eating;
@@ -162,7 +195,10 @@ namespace VibeCooking
             string feedback;
             if (accuracyScore >= 80 && firmnessBonus > 0)
             {
-                feedback = $"<color=#FFE899>\"Ahhh, this warms my soul! The {bowl.NoodleFirmness} noodles are cooked to perfection. Thank you chef!\"</color>";
+                string praise = (customerData != null && customerData.satisfactionDialogues.Count > 0)
+                    ? customerData.satisfactionDialogues[Random.Range(0, customerData.satisfactionDialogues.Count)]
+                    : $"Ahhh, this warms my soul! The {bowl.NoodleFirmness} noodles are cooked to perfection. Thank you chef!";
+                feedback = $"<color=#FFE899>\"{praise}\"</color>";
             }
             else if (accuracyScore >= 50)
             {
@@ -175,10 +211,15 @@ namespace VibeCooking
 
             SetSpeechDialogue(feedback);
 
+            if (activeTicket == null)
+                activeTicket = GetComponentInChildren<OrderTicket>();
+
+            int orderNum = activeTicket != null ? activeTicket.OrderNumber : orderCounter;
+
             // Award Money
             if (EconomyManager.Instance != null)
             {
-                EconomyManager.Instance.AddMoney(totalPayout, $"Order #{activeTicket.OrderNumber} Served");
+                EconomyManager.Instance.AddMoney(totalPayout, $"Order #{orderNum} Served");
             }
 
             GameEvents.TriggerOrderServed(bowl, this);
@@ -210,13 +251,18 @@ namespace VibeCooking
                 speechText.text = text;
         }
 
-        public void SetReferences(SpriteRenderer portrait, GameObject speechBubble, TMP_Text speechTMP, CustomerDataSO data, RecipeDataSO recipe)
+        public void SetReferences(SpriteRenderer portrait, GameObject speechBubble, TMP_Text speechTMP, CustomerDataSO data, RecipeDataSO recipe, List<CustomerDataSO> pool = null)
         {
             portraitRenderer = portrait;
             speechBubbleObject = speechBubble;
             speechText = speechTMP;
             customerData = data;
             currentRecipe = recipe;
+            if (pool != null)
+            {
+                customerPool.Clear();
+                customerPool.AddRange(pool);
+            }
         }
     }
 }

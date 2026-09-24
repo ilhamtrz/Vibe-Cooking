@@ -16,8 +16,8 @@ MonoBehaviour:
   title: Sleepy Software Developer
   portrait: {fileID: 21300000, guid: 430eababd1a0e3a43b8c7d6f3322a15f, type: 3}
   arrivalDialogues:
-  - I've been debugging a race condition for 6 hours... please give me a warm bowl of Shoyu ramen.
-  - Still waiting for CI to pass... smelled your stall from across the alley.
+  - I've been debugging a race condition for 6 hours... please give me a warm bowl of Classic Shoyu ramen with Futsuu noodles.
+  - Still waiting for CI to pass... smelled your stall from across the alley. A classic bowl with standard (Futsuu) noodles please!
   satisfactionDialogues:
   - '*Slurp*... Ahh, this is giving me the dopamine I needed. Back to fixing the memory leak!'
   - Delicious. My code will compile on the first try now, I can feel it.

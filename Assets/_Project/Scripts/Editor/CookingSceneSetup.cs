@@ -37,12 +37,27 @@ namespace VibeCooking.Editor
             var sprCoin = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_coin.png");
             var sprBubble = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_speech_bubble.png");
 
-            // 1b. Ensure EconomyManager exists
+            // 1b. Ensure EconomyManager, SettingsManager, and AudioManager exist
             var ecoObj = GameObject.Find("EconomyManager");
             if (ecoObj == null)
             {
                 ecoObj = new GameObject("EconomyManager");
                 ecoObj.AddComponent<EconomyManager>();
+            }
+
+            var settingsPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Prefabs/SettingsManager.prefab");
+            var settingsObj = GameObject.Find("SettingsManager");
+            if (settingsObj == null && settingsPrefab != null)
+            {
+                var inst = (GameObject)PrefabUtility.InstantiatePrefab(settingsPrefab);
+                inst.name = "SettingsManager";
+            }
+
+            var audioObj = GameObject.Find("AudioManager");
+            if (audioObj == null)
+            {
+                audioObj = new GameObject("AudioManager");
+                audioObj.AddComponent<AudioManager>();
             }
 
             // 1c. Setup Customer Area (The Night Coder)
@@ -218,10 +233,11 @@ namespace VibeCooking.Editor
                 }
             }
 
-            // 7. Setup Cooking Guide Canvas, Order Ticket, and Wallet HUD
-            var canvasObj = SetupGuideCanvas();
+            // 7. Setup Cooking Guide Canvas, Order Ticket, Wallet HUD, and In-Game Menu
+            var canvasObj = SetupGuideCanvas(customerAgent);
             SetupOrderTicketUI(canvasObj, sprTicket);
             SetupWalletHUD(canvasObj, sprCoin);
+            SetupInGameMenu(canvasObj);
 
             // 8. Ensure EventSystem exists and uses modern Input System
             EnsureEventSystem();
@@ -229,7 +245,7 @@ namespace VibeCooking.Editor
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveOpenScenes();
             AssetDatabase.SaveAssets();
-            Debug.Log("<color=green>[VibeCooking] Step 1.6: Customer, Order Ticket, and Economy HUD configured successfully!</color>");
+            Debug.Log("<color=green>[VibeCooking] Step 1.7: End-to-End MVP Loop & In-Game Menu configured successfully!</color>");
         }
 
         private static void SetupTray(string trayName, Sprite sprite, string labelText, Vector3 pos)
@@ -259,7 +275,7 @@ namespace VibeCooking.Editor
             }
         }
 
-        private static GameObject SetupGuideCanvas()
+        private static GameObject SetupGuideCanvas(CustomerAgent customerAgent)
         {
             var canvasObj = GameObject.Find("CookingGuideCanvas");
             if (canvasObj == null)
@@ -349,6 +365,8 @@ namespace VibeCooking.Editor
             // Wire serialized field via SerializedObject
             var so = new SerializedObject(guideUI);
             so.FindProperty("guideText").objectReferenceValue = promptTMP;
+            if (customerAgent != null)
+                so.FindProperty("customerAgent").objectReferenceValue = customerAgent;
             so.ApplyModifiedProperties();
 
             return canvasObj;
@@ -420,9 +438,19 @@ namespace VibeCooking.Editor
             var ca = customerArea.GetComponent<CustomerAgent>();
             if (ca == null) ca = customerArea.AddComponent<CustomerAgent>();
 
+            var pool = new System.Collections.Generic.List<CustomerDataSO>();
+            var guids = AssetDatabase.FindAssets("t:CustomerDataSO", new[] { "Assets/_Project/ScriptableObjects/Customers" });
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var c = AssetDatabase.LoadAssetAtPath<CustomerDataSO>(path);
+                if (c != null && !pool.Contains(c)) pool.Add(c);
+            }
+
             var customerData = AssetDatabase.LoadAssetAtPath<CustomerDataSO>("Assets/_Project/ScriptableObjects/Customers/NightCoderCustomer.asset");
+            if (customerData == null && pool.Count > 0) customerData = pool[0];
             var recipeData = AssetDatabase.LoadAssetAtPath<RecipeDataSO>("Assets/_Project/ScriptableObjects/Recipes/ClassicShoyuRamen.asset");
-            ca.SetReferences(portraitSR, speechObj, speechTMP, customerData, recipeData);
+            ca.SetReferences(portraitSR, speechObj, speechTMP, customerData, recipeData, pool);
 
             return ca;
         }
@@ -555,8 +583,8 @@ namespace VibeCooking.Editor
             rt.anchorMin = new Vector2(1f, 1f);
             rt.anchorMax = new Vector2(1f, 1f);
             rt.pivot = new Vector2(1f, 1f);
-            rt.anchoredPosition = new Vector2(-35f, -20f);
-            rt.sizeDelta = new Vector2(185f, 52f);
+            rt.anchoredPosition = new Vector2(-125f, -20f);
+            rt.sizeDelta = new Vector2(210f, 68f);
 
             // Coin Icon
             var iconObj = walletObj.transform.Find("CoinIcon")?.gameObject;
@@ -568,8 +596,8 @@ namespace VibeCooking.Editor
             var coinImg = iconObj.GetComponent<Image>();
             if (coinImg == null) coinImg = iconObj.AddComponent<Image>();
             if (sprCoin != null) coinImg.sprite = sprCoin;
-            coinImg.rectTransform.anchoredPosition = new Vector2(-55f, 0f);
-            coinImg.rectTransform.sizeDelta = new Vector2(34f, 34f);
+            coinImg.rectTransform.anchoredPosition = new Vector2(-65f, 10f);
+            coinImg.rectTransform.sizeDelta = new Vector2(32f, 32f);
 
             // Balance Text
             var balanceObj = walletObj.transform.Find("BalanceText")?.gameObject;
@@ -584,8 +612,25 @@ namespace VibeCooking.Editor
             balanceTMP.fontSize = 20f;
             balanceTMP.color = new Color(1.0f, 0.84f, 0.20f, 1f);
             balanceTMP.alignment = TextAlignmentOptions.Center;
-            balanceTMP.rectTransform.anchoredPosition = new Vector2(20f, 0f);
-            balanceTMP.rectTransform.sizeDelta = new Vector2(110f, 36f);
+            balanceTMP.rectTransform.anchoredPosition = new Vector2(15f, 10f);
+            balanceTMP.rectTransform.sizeDelta = new Vector2(120f, 32f);
+
+            // Bowls Served Counter Text
+            var ordersObj = walletObj.transform.Find("OrdersServedText")?.gameObject;
+            if (ordersObj == null)
+            {
+                ordersObj = new GameObject("OrdersServedText");
+                ordersObj.transform.SetParent(walletObj.transform, false);
+            }
+            var ordersTMP = ordersObj.GetComponent<TextMeshProUGUI>();
+            if (ordersTMP == null) ordersTMP = ordersObj.AddComponent<TextMeshProUGUI>();
+            ordersTMP.text = "Bowls Served: 0";
+            ordersTMP.fontSize = 13.5f;
+            ordersTMP.fontStyle = FontStyles.Normal;
+            ordersTMP.color = new Color(0.92f, 0.72f, 0.45f, 0.95f);
+            ordersTMP.alignment = TextAlignmentOptions.Center;
+            ordersTMP.rectTransform.anchoredPosition = new Vector2(0f, -18f);
+            ordersTMP.rectTransform.sizeDelta = new Vector2(195f, 22f);
 
             // Floating Reward Popup
             var popupObj = walletObj.transform.Find("FloatingPopup")?.gameObject;
@@ -601,7 +646,7 @@ namespace VibeCooking.Editor
             popupTMP.fontStyle = FontStyles.Bold;
             popupTMP.color = new Color(1.0f, 0.94f, 0.55f, 1f);
             popupTMP.alignment = TextAlignmentOptions.Center;
-            popupTMP.rectTransform.anchoredPosition = new Vector2(0f, -42f);
+            popupTMP.rectTransform.anchoredPosition = new Vector2(0f, -50f);
             popupTMP.rectTransform.sizeDelta = new Vector2(160f, 35f);
             popupObj.SetActive(false);
 
@@ -611,7 +656,175 @@ namespace VibeCooking.Editor
             var so = new SerializedObject(walletHUD);
             so.FindProperty("balanceText").objectReferenceValue = balanceTMP;
             so.FindProperty("floatingPopupText").objectReferenceValue = popupTMP;
+            so.FindProperty("ordersServedText").objectReferenceValue = ordersTMP;
             so.ApplyModifiedProperties();
+        }
+
+        private static void SetupInGameMenu(GameObject canvasObj)
+        {
+            // 1. Menu Toggle Button on HUD (top-right corner)
+            var menuBtnObj = canvasObj.transform.Find("MenuToggleButton")?.gameObject;
+            if (menuBtnObj == null)
+            {
+                menuBtnObj = MainMenuBuilder.CreateUIRect("MenuToggleButton", canvasObj.transform);
+            }
+            var menuBtnRT = menuBtnObj.GetComponent<RectTransform>();
+            menuBtnRT.anchorMin = new Vector2(1f, 1f);
+            menuBtnRT.anchorMax = new Vector2(1f, 1f);
+            menuBtnRT.pivot = new Vector2(1f, 1f);
+            menuBtnRT.anchoredPosition = new Vector2(-35f, -20f);
+            menuBtnRT.sizeDelta = new Vector2(75f, 68f);
+
+            var menuBtnImg = menuBtnObj.GetComponent<Image>();
+            if (menuBtnImg == null) menuBtnImg = menuBtnObj.AddComponent<Image>();
+            menuBtnImg.color = new Color(0.12f, 0.14f, 0.20f, 0.95f);
+
+            var menuBtn = menuBtnObj.GetComponent<Button>();
+            if (menuBtn == null) menuBtn = menuBtnObj.AddComponent<Button>();
+
+            var menuColors = menuBtn.colors;
+            menuColors.highlightedColor = new Color(0.20f, 0.24f, 0.35f, 1f);
+            menuColors.pressedColor = new Color(0.08f, 0.10f, 0.15f, 1f);
+            menuBtn.colors = menuColors;
+
+            var menuLabelObj = menuBtnObj.transform.Find("Label")?.gameObject;
+            if (menuLabelObj == null)
+            {
+                menuLabelObj = MainMenuBuilder.CreateUIRect("Label", menuBtnObj.transform);
+                MainMenuBuilder.SetStretch(menuLabelObj);
+            }
+            var menuTMP = menuLabelObj.GetComponent<TextMeshProUGUI>();
+            if (menuTMP == null) menuTMP = menuLabelObj.AddComponent<TextMeshProUGUI>();
+            menuTMP.text = "<b>MENU\n<size=65%><color=#FFAA44>||</color></size></b>";
+            menuTMP.fontSize = 17f;
+            menuTMP.fontStyle = FontStyles.Bold;
+            menuTMP.color = new Color(1f, 0.78f, 0.42f);
+            menuTMP.alignment = TextAlignmentOptions.Center;
+
+            // 2. Pause Modal Root (Fullscreen Overlay)
+            var modalRoot = canvasObj.transform.Find("PauseModalPanel")?.gameObject;
+            if (modalRoot == null)
+            {
+                modalRoot = MainMenuBuilder.CreateUIRect("PauseModalPanel", canvasObj.transform);
+                MainMenuBuilder.SetStretch(modalRoot);
+            }
+
+            var modalBg = modalRoot.GetComponent<Image>();
+            if (modalBg == null) modalBg = modalRoot.AddComponent<Image>();
+            modalBg.color = new Color(0.04f, 0.05f, 0.07f, 0.88f);
+
+            // Dialog Window
+            var dialogObj = modalRoot.transform.Find("DialogWindow")?.gameObject;
+            if (dialogObj == null)
+            {
+                dialogObj = MainMenuBuilder.CreateUIRect("DialogWindow", modalRoot.transform);
+            }
+            var dialogRect = dialogObj.GetComponent<RectTransform>();
+            dialogRect.anchorMin = new Vector2(0.5f, 0.5f);
+            dialogRect.anchorMax = new Vector2(0.5f, 0.5f);
+            dialogRect.pivot = new Vector2(0.5f, 0.5f);
+            dialogRect.sizeDelta = new Vector2(440f, 380f);
+
+            var dialogBg = dialogObj.GetComponent<Image>();
+            if (dialogBg == null) dialogBg = dialogObj.AddComponent<Image>();
+            dialogBg.color = new Color(0.14f, 0.16f, 0.21f, 1f);
+
+            // Header
+            var headerObj = dialogObj.transform.Find("Header")?.gameObject;
+            if (headerObj == null)
+            {
+                headerObj = MainMenuBuilder.CreateUIRect("Header", dialogObj.transform);
+            }
+            var headerRect = headerObj.GetComponent<RectTransform>();
+            headerRect.anchorMin = new Vector2(0f, 1f);
+            headerRect.anchorMax = new Vector2(1f, 1f);
+            headerRect.pivot = new Vector2(0.5f, 1f);
+            headerRect.anchoredPosition = new Vector2(0f, -20f);
+            headerRect.sizeDelta = new Vector2(0f, 60f);
+
+            var headerTMP = headerObj.GetComponent<TextMeshProUGUI>();
+            if (headerTMP == null) headerTMP = headerObj.AddComponent<TextMeshProUGUI>();
+            headerTMP.text = "<b>PAUSED</b>\n<size=50%><color=#C8C4B8>~ Lo-Fi Ramen Shop ~</color></size>";
+            headerTMP.fontSize = 32f;
+            headerTMP.fontStyle = FontStyles.Bold;
+            headerTMP.color = new Color(1f, 0.78f, 0.42f);
+            headerTMP.alignment = TextAlignmentOptions.Center;
+
+            // Button Group
+            var btnGroupObj = dialogObj.transform.Find("ButtonGroup")?.gameObject;
+            if (btnGroupObj == null)
+            {
+                btnGroupObj = MainMenuBuilder.CreateUIRect("ButtonGroup", dialogObj.transform);
+            }
+            var btnGroupRect = btnGroupObj.GetComponent<RectTransform>();
+            btnGroupRect.anchorMin = new Vector2(0.5f, 0.4f);
+            btnGroupRect.anchorMax = new Vector2(0.5f, 0.4f);
+            btnGroupRect.pivot = new Vector2(0.5f, 0.5f);
+            btnGroupRect.sizeDelta = new Vector2(320f, 220f);
+
+            var vlg = btnGroupObj.GetComponent<VerticalLayoutGroup>();
+            if (vlg == null) vlg = btnGroupObj.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 16f;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+
+            // Resume, Settings, Main Menu Buttons
+            var resumeBtnObj = btnGroupObj.transform.Find("ResumeButton")?.gameObject;
+            Button resumeBtn = null;
+            if (resumeBtnObj == null)
+            {
+                resumeBtn = MainMenuBuilder.CreateMenuButton("ResumeButton", "RESUME", new Color(0.85f, 0.55f, 0.20f), btnGroupObj.transform);
+            }
+            else
+            {
+                resumeBtn = resumeBtnObj.GetComponent<Button>();
+            }
+
+            var settingsBtnObj = btnGroupObj.transform.Find("SettingsButton")?.gameObject;
+            Button settingsBtn = null;
+            if (settingsBtnObj == null)
+            {
+                settingsBtn = MainMenuBuilder.CreateMenuButton("SettingsButton", "SETTINGS", new Color(0.25f, 0.30f, 0.40f), btnGroupObj.transform);
+            }
+            else
+            {
+                settingsBtn = settingsBtnObj.GetComponent<Button>();
+            }
+
+            var mainMenuBtnObj = btnGroupObj.transform.Find("MainMenuButton")?.gameObject;
+            Button mainMenuBtn = null;
+            if (mainMenuBtnObj == null)
+            {
+                mainMenuBtn = MainMenuBuilder.CreateMenuButton("MainMenuButton", "MAIN MENU", new Color(0.25f, 0.25f, 0.30f), btnGroupObj.transform);
+            }
+            else
+            {
+                mainMenuBtn = mainMenuBtnObj.GetComponent<Button>();
+            }
+
+            // 3. Settings Modal Panel (reuses MainMenuBuilder.BuildSettingsModal)
+            var settingsPanelObj = canvasObj.transform.Find("SettingsModalPanel")?.gameObject;
+            SettingsPanelUI settingsPanel = null;
+            if (settingsPanelObj == null)
+            {
+                settingsPanel = MainMenuBuilder.BuildSettingsModal(canvasObj.transform);
+            }
+            else
+            {
+                settingsPanel = settingsPanelObj.GetComponent<SettingsPanelUI>();
+            }
+
+            // 4. Attach InGameMenuController to canvasObj
+            var menuCtrl = canvasObj.GetComponent<InGameMenuController>();
+            if (menuCtrl == null) menuCtrl = canvasObj.AddComponent<InGameMenuController>();
+
+            menuCtrl.SetReferences(menuBtn, resumeBtn, settingsBtn, mainMenuBtn, modalRoot, settingsPanel);
+
+            // Ensure modals are initially inactive
+            modalRoot.SetActive(false);
+            if (settingsPanel != null) settingsPanel.ClosePanel();
         }
 
         private static void EnsureEventSystem()

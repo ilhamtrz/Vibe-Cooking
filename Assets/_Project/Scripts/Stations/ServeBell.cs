@@ -35,7 +35,11 @@ namespace VibeCooking
             transform.localScale = initialScale * 0.88f;
             Invoke(nameof(ResetScale), 0.12f);
 
-            if (audioSource != null && bellDingClip != null)
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayBellDing();
+            }
+            else if (audioSource != null && bellDingClip != null)
             {
                 audioSource.PlayOneShot(bellDingClip);
             }

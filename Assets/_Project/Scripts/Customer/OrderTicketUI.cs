@@ -46,6 +46,7 @@ namespace VibeCooking
 
             if (detailsText != null)
             {
+                string custName = (ticket.Customer != null && !string.IsNullOrEmpty(ticket.Customer.customerName)) ? ticket.Customer.customerName : "Guest";
                 string broth = ticket.Recipe.requiredBroth != null ? ticket.Recipe.requiredBroth.displayName : "Shoyu";
                 string firmness = ticket.RequestedFirmness.ToString();
 
@@ -56,7 +57,8 @@ namespace VibeCooking
                 }
                 string toppings = toppingsList.Count > 0 ? string.Join("\n• ", toppingsList) : "None";
 
-                detailsText.text = $"<b>Broth:</b> {broth}\n" +
+                detailsText.text = $"<b>Customer:</b> <color=#795548>{custName}</color>\n" +
+                                   $"<b>Broth:</b> {broth}\n" +
                                    $"<b>Noodles:</b> <color=#2E7D32>{firmness}</color>\n" +
                                    $"<b>Toppings:</b>\n• {toppings}";
             }

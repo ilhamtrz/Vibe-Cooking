@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f261f948bcc352241b678aeb430ea9c5, type: 3}
+  m_Name: VinylDiggerCustomer
+  m_EditorClassIdentifier: Assembly-CSharp::VibeCooking.CustomerDataSO
+  customerName: The Vinyl Digger
+  title: Lo-Fi Beatmaker & Record Collector
+  portrait: {fileID: 21300000, guid: 429946c04a7436a46b9fd565828a55d8, type: 3}
+  arrivalDialogues:
+  - Yo chef! Just found a rare city-pop vinyl down the block. Can I get a Chashu Shoyu with firm (Kata) noodles? Need that crisp bite!
+  - Late night crate-digging got me starved. A bowl of Chashu Shoyu please, keep the noodles Kata (firm)!
+  satisfactionDialogues:
+  - '*Slurp*... Oh man, that crisp Kata texture hits like a fresh snare drum! Pure lo-fi bliss.'
+  - Top tier vibes, chef. That savory chashu and firm noodle combo is a whole groove.
+  favoriteRecipes:
+  - {fileID: 11400000, guid: 68cd7a4b7ac87214da533924963f7e27, type: 2}
+  preferredFirmness: 1

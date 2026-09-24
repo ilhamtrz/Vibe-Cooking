@@ -9,17 +9,21 @@ namespace VibeCooking
         [Header("UI References")]
         [SerializeField] private TMP_Text balanceText;
         [SerializeField] private TMP_Text floatingPopupText;
+        [SerializeField] private TMP_Text ordersServedText;
 
         private Coroutine popupCoroutine;
+        private int ordersServedCount = 0;
 
         private void OnEnable()
         {
             GameEvents.OnMoneyChanged += HandleMoneyChanged;
+            GameEvents.OnOrderServed += HandleOrderServed;
         }
 
         private void OnDisable()
         {
             GameEvents.OnMoneyChanged -= HandleMoneyChanged;
+            GameEvents.OnOrderServed -= HandleOrderServed;
         }
 
         private void Start()
@@ -33,17 +37,39 @@ namespace VibeCooking
             {
                 UpdateBalanceDisplay(EconomyManager.Instance.CurrentYen);
             }
+
+            UpdateOrdersServedDisplay();
+        }
+
+        private void HandleOrderServed(BowlInstance bowl, CustomerAgent customer)
+        {
+            ordersServedCount++;
+            UpdateOrdersServedDisplay();
+        }
+
+        private void UpdateOrdersServedDisplay()
+        {
+            if (ordersServedText != null)
+            {
+                ordersServedText.text = $"Bowls Served: {ordersServedCount}";
+            }
         }
 
         private void HandleMoneyChanged(int totalYen, int delta)
         {
             UpdateBalanceDisplay(totalYen);
 
-            if (delta > 0 && floatingPopupText != null)
+            if (delta > 0)
             {
-                if (popupCoroutine != null)
-                    StopCoroutine(popupCoroutine);
-                popupCoroutine = StartCoroutine(ShowFloatingReward($"+¥{delta}"));
+                if (AudioManager.Instance != null)
+                    AudioManager.Instance.PlayCoinCollect();
+
+                if (floatingPopupText != null)
+                {
+                    if (popupCoroutine != null)
+                        StopCoroutine(popupCoroutine);
+                    popupCoroutine = StartCoroutine(ShowFloatingReward($"+¥{delta}"));
+                }
             }
         }
 

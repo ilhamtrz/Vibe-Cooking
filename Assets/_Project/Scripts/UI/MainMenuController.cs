@@ -63,7 +63,11 @@ namespace VibeCooking
 
         private void PlayButtonClickSound()
         {
-            if (audioSource != null && buttonClickClip != null)
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlayButtonClick();
+            }
+            else if (audioSource != null && buttonClickClip != null)
             {
                 audioSource.PlayOneShot(buttonClickClip);
             }

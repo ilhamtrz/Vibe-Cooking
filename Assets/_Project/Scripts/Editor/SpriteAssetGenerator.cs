@@ -25,6 +25,8 @@ namespace VibeCooking.Editor
             CreateBasketSprite();
             CreatePotSprite();
             CreateCustomerNightCoderSprite();
+            CreateCustomerVinylDiggerSprite();
+            CreateCustomerRainyStudentSprite();
             CreateOrderTicketSprite();
             CreateCoinSprite();
             CreateSpeechBubbleSprite();
@@ -41,6 +43,8 @@ namespace VibeCooking.Editor
             ConfigureAsSprite($"{ArtPath}/spr_basket.png");
             ConfigureAsSprite($"{ArtPath}/spr_pot_shoyu.png");
             ConfigureAsSprite($"{ArtPath}/spr_customer_night_coder.png");
+            ConfigureAsSprite($"{ArtPath}/spr_customer_vinyl_digger.png");
+            ConfigureAsSprite($"{ArtPath}/spr_customer_rainy_student.png");
             ConfigureAsSprite($"{ArtPath}/spr_order_ticket.png");
             ConfigureAsSprite($"{ArtPath}/spr_coin.png");
             ConfigureAsSprite($"{ArtPath}/spr_speech_bubble.png");
@@ -132,6 +136,24 @@ namespace VibeCooking.Editor
             {
                 customerSO.portrait = sprCustomer;
                 EditorUtility.SetDirty(customerSO);
+            }
+
+            // Customer: Vinyl Digger
+            var sprVinylDigger = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_customer_vinyl_digger.png");
+            var vinylDiggerSO = AssetDatabase.LoadAssetAtPath<CustomerDataSO>("Assets/_Project/ScriptableObjects/Customers/VinylDiggerCustomer.asset");
+            if (vinylDiggerSO != null && sprVinylDigger != null)
+            {
+                vinylDiggerSO.portrait = sprVinylDigger;
+                EditorUtility.SetDirty(vinylDiggerSO);
+            }
+
+            // Customer: Rainy Student
+            var sprRainyStudent = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtPath}/spr_customer_rainy_student.png");
+            var rainyStudentSO = AssetDatabase.LoadAssetAtPath<CustomerDataSO>("Assets/_Project/ScriptableObjects/Customers/RainyStudentCustomer.asset");
+            if (rainyStudentSO != null && sprRainyStudent != null)
+            {
+                rainyStudentSO.portrait = sprRainyStudent;
+                EditorUtility.SetDirty(rainyStudentSO);
             }
 
             AssetDatabase.SaveAssets();
@@ -500,6 +522,182 @@ namespace VibeCooking.Editor
             }
             tex.Apply();
             File.WriteAllBytes($"{ArtPath}/spr_customer_night_coder.png", tex.EncodeToPNG());
+        }
+
+        private static void CreateCustomerVinylDiggerSprite()
+        {
+            int size = 256;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float cx = size * 0.5f;
+
+            Color sweaterCol = new Color(0.85f, 0.58f, 0.18f, 1f);   // Mustard amber knit sweater
+            Color sweaterShade = new Color(0.70f, 0.46f, 0.12f, 1f);
+            Color skinCol = new Color(0.94f, 0.84f, 0.76f, 1f);       // Warm skin tone
+            Color hairCol = new Color(0.24f, 0.16f, 0.12f, 1f);       // Dark wavy brown hair
+            Color phoneBandCol = new Color(0.18f, 0.20f, 0.26f, 1f);  // Studio headphone band
+            Color phoneMetalCol = new Color(0.80f, 0.82f, 0.88f, 1f); // Brushed silver metal
+            Color eyesCol = new Color(0.22f, 0.18f, 0.16f, 1f);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    tex.SetPixel(x, y, Color.clear);
+
+                    // 1. Shoulders & Sweater Body (y: 0 to 115)
+                    float bodyDist = Mathf.Pow((x - cx) / 105f, 2) + Mathf.Pow((y - 20f) / 95f, 2);
+                    if (bodyDist <= 1.0f && y < 118)
+                    {
+                        bool isRibbed = (x % 6 == 0);
+                        tex.SetPixel(x, y, isRibbed ? sweaterShade : sweaterCol);
+                    }
+
+                    // 2. Head / Face (y: 95 to 195)
+                    float faceDist = Mathf.Pow((x - cx) / 52f, 2) + Mathf.Pow((y - 145f) / 58f, 2);
+                    if (faceDist <= 1.0f)
+                    {
+                        tex.SetPixel(x, y, skinCol);
+                    }
+
+                    // 3. Relaxed Eyes (y: 138 to 144)
+                    float leftEyeDist = Vector2.Distance(new Vector2(x, y), new Vector2(cx - 22, 142));
+                    float rightEyeDist = Vector2.Distance(new Vector2(x, y), new Vector2(cx + 22, 142));
+                    if (leftEyeDist <= 4f || rightEyeDist <= 4f)
+                    {
+                        tex.SetPixel(x, y, eyesCol);
+                    }
+
+                    // Subtle chill smile (y: 121 to 124)
+                    if (y >= 121 && y <= 124 && Mathf.Abs(x - cx) <= 14)
+                    {
+                        float curve = Mathf.Pow((x - cx) / 14f, 2) * 3f;
+                        if (y <= 122 + curve)
+                        {
+                            tex.SetPixel(x, y, new Color(0.55f, 0.30f, 0.24f, 1f));
+                        }
+                    }
+
+                    // 4. Wavy Hair (y: 155 to 215)
+                    float hairDist = Mathf.Pow((x - cx) / 58f, 2) + Mathf.Pow((y - 165f) / 52f, 2);
+                    if (hairDist <= 1.05f && y > 150)
+                    {
+                        tex.SetPixel(x, y, hairCol);
+                    }
+
+                    // 5. Studio Headphones - Over-Ear Cushions (x: cx ± 56, y: 142)
+                    float leftCup = Vector2.Distance(new Vector2(x, y), new Vector2(cx - 54, 142));
+                    float rightCup = Vector2.Distance(new Vector2(x, y), new Vector2(cx + 54, 142));
+                    if (leftCup <= 19f || rightCup <= 19f)
+                    {
+                        if (leftCup >= 15f || rightCup >= 15f)
+                            tex.SetPixel(x, y, phoneMetalCol); // Silver metallic rim
+                        else
+                            tex.SetPixel(x, y, phoneBandCol);  // Dark leather cushion
+                    }
+
+                    // Headphone Arch over the head
+                    float archDist = Mathf.Pow((x - cx) / 64f, 2) + Mathf.Pow((y - 165f) / 56f, 2);
+                    if (archDist <= 1.22f && archDist >= 1.05f && y >= 165)
+                    {
+                        tex.SetPixel(x, y, phoneBandCol);
+                    }
+                }
+            }
+            tex.Apply();
+            File.WriteAllBytes($"{ArtPath}/spr_customer_vinyl_digger.png", tex.EncodeToPNG());
+        }
+
+        private static void CreateCustomerRainyStudentSprite()
+        {
+            int size = 256;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float cx = size * 0.5f;
+
+            Color coatCol = new Color(0.18f, 0.38f, 0.28f, 1f);      // Emerald green rain coat
+            Color coatShade = new Color(0.12f, 0.26f, 0.18f, 1f);
+            Color scarfCol = new Color(0.92f, 0.88f, 0.80f, 1f);     // Cozy cream knit scarf
+            Color scarfShade = new Color(0.78f, 0.74f, 0.65f, 1f);
+            Color skinCol = new Color(0.97f, 0.89f, 0.84f, 1f);       // Soft warm skin tone
+            Color hairCol = new Color(0.38f, 0.25f, 0.18f, 1f);       // Warm chestnut brown hair
+            Color glassesCol = new Color(0.88f, 0.74f, 0.36f, 1f);    // Gold wire round spectacles
+            Color eyesCol = new Color(0.24f, 0.18f, 0.16f, 1f);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    tex.SetPixel(x, y, Color.clear);
+
+                    // 1. Shoulders & Coat Body (y: 0 to 110)
+                    float bodyDist = Mathf.Pow((x - cx) / 105f, 2) + Mathf.Pow((y - 20f) / 95f, 2);
+                    if (bodyDist <= 1.0f && y < 112)
+                    {
+                        tex.SetPixel(x, y, (x > cx - 18 && x < cx + 18) ? coatShade : coatCol);
+                    }
+
+                    // 2. Thick Knitted Scarf (y: 85 to 125)
+                    float scarfDist = Mathf.Pow((x - cx) / 58f, 2) + Mathf.Pow((y - 105f) / 22f, 2);
+                    if (scarfDist <= 1.0f && y < 122)
+                    {
+                        bool isKnit = ((x + y) % 8 < 4);
+                        tex.SetPixel(x, y, isKnit ? scarfCol : scarfShade);
+                    }
+
+                    // 3. Head / Face (y: 110 to 195)
+                    float faceDist = Mathf.Pow((x - cx) / 50f, 2) + Mathf.Pow((y - 150f) / 52f, 2);
+                    if (faceDist <= 1.0f)
+                    {
+                        tex.SetPixel(x, y, skinCol);
+                    }
+
+                    // 4. Soft Eyes behind glasses
+                    float leftEyeDist = Vector2.Distance(new Vector2(x, y), new Vector2(cx - 22, 145));
+                    float rightEyeDist = Vector2.Distance(new Vector2(x, y), new Vector2(cx + 22, 145));
+                    if (leftEyeDist <= 3.5f || rightEyeDist <= 3.5f)
+                    {
+                        tex.SetPixel(x, y, eyesCol);
+                    }
+
+                    // Gentle smile (y: 125 to 128)
+                    if (y >= 125 && y <= 128 && Mathf.Abs(x - cx) <= 12)
+                    {
+                        float curve = Mathf.Pow((x - cx) / 12f, 2) * 2.5f;
+                        if (y <= 126 + curve)
+                        {
+                            tex.SetPixel(x, y, new Color(0.60f, 0.32f, 0.28f, 1f));
+                        }
+                    }
+
+                    // 5. Round Gold Wire Glasses (radius 14)
+                    float leftGlass = Vector2.Distance(new Vector2(x, y), new Vector2(cx - 22, 145));
+                    float rightGlass = Vector2.Distance(new Vector2(x, y), new Vector2(cx + 22, 145));
+                    if ((leftGlass <= 15f && leftGlass >= 13f) || (rightGlass <= 15f && rightGlass >= 13f))
+                    {
+                        tex.SetPixel(x, y, glassesCol);
+                    }
+                    // Bridge
+                    if (Mathf.Abs(y - 146) <= 1.5f && Mathf.Abs(x - cx) <= 10)
+                    {
+                        tex.SetPixel(x, y, glassesCol);
+                    }
+
+                    // 6. Hair & Top-knot Bun (y: 160 to 235)
+                    float hairDist = Mathf.Pow((x - cx) / 56f, 2) + Mathf.Pow((y - 170f) / 48f, 2);
+                    if (hairDist <= 1.05f && y > 152)
+                    {
+                        tex.SetPixel(x, y, hairCol);
+                    }
+
+                    // Messy Top-knot Bun (cx, 218)
+                    float bunDist = Vector2.Distance(new Vector2(x, y), new Vector2(cx, 218));
+                    if (bunDist <= 24f)
+                    {
+                        tex.SetPixel(x, y, hairCol);
+                    }
+                }
+            }
+            tex.Apply();
+            File.WriteAllBytes($"{ArtPath}/spr_customer_rainy_student.png", tex.EncodeToPNG());
         }
 
         private static void CreateOrderTicketSprite()

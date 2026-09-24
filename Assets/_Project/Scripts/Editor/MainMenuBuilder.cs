@@ -53,6 +53,14 @@ namespace VibeCooking.Editor
                 Debug.LogWarning("[MainMenuBuilder] SettingsManager prefab not found at " + SettingsPrefabPath);
             }
 
+            // 5b. Ensure AudioManager exists
+            var audioObj = GameObject.Find("AudioManager");
+            if (audioObj == null)
+            {
+                audioObj = new GameObject("AudioManager");
+                audioObj.AddComponent<AudioManager>();
+            }
+
             // 6. Setup EventSystem
             var eventSystemObj = new GameObject("EventSystem");
             eventSystemObj.AddComponent<EventSystem>();
@@ -176,7 +184,7 @@ namespace VibeCooking.Editor
             Debug.Log("<color=green>[VibeCooking] Build Settings updated: MainMenuScene (Index 0), GameScene (Index 1)</color>");
         }
 
-        private static SettingsPanelUI BuildSettingsModal(Transform canvasTransform)
+        public static SettingsPanelUI BuildSettingsModal(Transform canvasTransform)
         {
             var modalRoot = CreateUIRect("SettingsModalPanel", canvasTransform);
             SetStretch(modalRoot);
@@ -378,7 +386,7 @@ namespace VibeCooking.Editor
             return (slider, valText);
         }
 
-        private static Button CreateMenuButton(string name, string label, Color bgColor, Transform parent)
+        public static Button CreateMenuButton(string name, string label, Color bgColor, Transform parent)
         {
             var btnObj = CreateUIRect(name, parent);
             var le = btnObj.AddComponent<LayoutElement>();
@@ -406,14 +414,14 @@ namespace VibeCooking.Editor
             return btn;
         }
 
-        private static GameObject CreateUIRect(string name, Transform parent)
+        public static GameObject CreateUIRect(string name, Transform parent)
         {
             var obj = new GameObject(name, typeof(RectTransform));
             obj.transform.SetParent(parent, false);
             return obj;
         }
 
-        private static void SetStretch(GameObject obj)
+        public static void SetStretch(GameObject obj)
         {
             var rect = obj.GetComponent<RectTransform>();
             rect.anchorMin = Vector2.zero;
